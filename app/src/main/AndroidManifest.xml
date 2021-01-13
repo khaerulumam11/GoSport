@@ -25,16 +25,18 @@
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.GoSport">
         <activity android:name=".LoginActivity">
-        </activity>
-        <activity android:name=".MainActivity">
-
-        </activity>
-        <activity android:name=".Activity_Main">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity android:name=".MainActivity">
+
+        </activity>
+        <activity android:name=".Activity_Main"
+            android:theme="@android:style/Theme.DeviceDefault.Light.DarkActionBar">
+
         </activity>
         <receiver android:name=".service.BootReceiver">
             <intent-filter>
