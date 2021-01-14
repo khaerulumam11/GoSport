@@ -1,11 +1,14 @@
 package co.id.gosport;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Typeface;
 import android.location.Address;
 import android.location.Geocoder;
@@ -37,10 +40,11 @@ import java.util.Locale;
 import co.id.gosport.adapter.RecyclerAdapter;
 import co.id.gosport.model.ForecastWeatherModel;
 import co.id.gosport.model.WeatherModel;
+import co.id.gosport.service.GpsService;
 import co.id.gosport.utils.AppUtil;
 import co.id.gosport.utils.TextViewFactory;
 
-public class MainActivity extends AppCompatActivity implements LocationListener {
+public class MainActivity extends AppCompatActivity {
 
 
     TextSwitcher tsTemp, tsDesc,tsHumidity, tsWind;
@@ -49,6 +53,8 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     LottieAnimationView animationView;
     private Gson gson;
     RecyclerAdapter adapter;
+    private GpsService gpsService;
+    private double lat, lng;
     ArrayList<ForecastWeatherModel.ForecastEntity> list = new ArrayList<>();
 
 
@@ -65,24 +71,48 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         animationView = findViewById(R.id.animation_view);
         btnRun = findViewById(R.id.btnRun);
         rv = findViewById(R.id.rvList);
+        gpsService = new GpsService(MainActivity.this);
         adapter = new RecyclerAdapter(this,list);
         rv.setLayoutManager(new LinearLayoutManager(this,LinearLayoutManager.HORIZONTAL,false));
         rv.setAdapter(adapter);
+        try {
+            if (ContextCompat.checkSelfPermission(getApplicationContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ) {
+                ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 101);
+
+            } else {
+                getLocation();
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+        }
         typeface = Typeface.createFromAsset(getAssets(), "fonts/Vazir.ttf");
         setupTextSwitchers();
         btnRun.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent pindah = new Intent(MainActivity.this,Activity_Main.class);
-                startActivity(pindah);
+                Intent launchIntent = getPackageManager().getLaunchIntentForPackage("de.j4velin.pedometer");
+                if (launchIntent != null) {
+                    startActivity(launchIntent);//null pointer check in case package name was not found
+                }
             }
         });
-        fetchData("surabaya");
+        fetchData(lat,lng);
     }
 
-    private void fetchData(String kota) {
+    public void getLocation(){
+        if(gpsService.canGetLocation()){
+            lat = gpsService.getLatitude();
+            lng = gpsService.getLongitude();
+            System.out.println("Lat "+lat);
+            System.out.println("Lng "+lng);
+        }else{
+            gpsService.showSettingsAlert();
+        }
+    }
 
-        AndroidNetworking.get("http://api.weatherapi.com/v1/forecast.json?key=a3fc9a38d261490185465132201111&q="+kota+"&days=7")
+    private void fetchData(double lat, double lng) {
+
+        AndroidNetworking.get("http://api.weatherapi.com/v1/forecast.json?key=a3fc9a38d261490185465132201111&q="+lat+","+lng+"&days=7")
                 .setPriority(Priority.HIGH)
                 .build()
                 .getAsJSONObject(new JSONObjectRequestListener() {
@@ -142,39 +172,4 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
     }
 
 
-    @Override
-    public void onLocationChanged(Location location) {
-        System.out.println("Latitude : "+location.getLatitude());
-        System.out.println("Longitude : "+location.getLongitude());
-        String cityName = null;
-        Geocoder gcd = new Geocoder(getBaseContext(), Locale.getDefault());
-        List<Address> addresses;
-        try {
-            addresses = gcd.getFromLocation(location.getLatitude(),
-                    location.getLongitude(), 1);
-            if (addresses.size() > 0) {
-                System.out.println(addresses.get(0).getLocality());
-                cityName = addresses.get(0).getLocality();
-                fetchData(cityName);
-            }
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-
-    }
-
-    @Override
-    public void onProviderDisabled(String provider) {
-
-    }
 }
